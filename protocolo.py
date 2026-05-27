@@ -11,20 +11,24 @@
 
 ## Sensor notifica -> Gerenciador, sendo valor único retornado ao cliente
 ## quando pedir certa informação sobre um determinado paramêtro.
+
+
 class Dispositivo:
     def __init__(self, id_completo: str):
         self.id_str = id_completo
         # ATUADOR_AQUEC_03
         parserId = id_completo.split("_")
 
-        if len(parserId) != 3:
+        if len(parserId) > 3 or len(parserId) < 1:
             raise ValueError(
-                f"ID inválido. {id_completo} deve seguir COMPONENTE_FUNCAO_XX"
+                f"ID inválido. {id_completo} deve seguir COMPONENTE_FUNCAO_XX ou COMPONENTE ou COMPONENTE_XX"
             )
 
         self.tipo = parserId[0]
-        self.funcao = parserId[1]
-        self.num = parserId[2]
+
+        self.funcao = parserId[1] if len(parserId) >= 2 else None
+
+        self.num = parserId[2] if len(parserId) == 3 else None
 
         if self.tipo not in ["SENSOR", "ATUADOR", "CLIENTE", "GERENCIADOR"]:
             raise ValueError("Tipo de componente desconhecido")
