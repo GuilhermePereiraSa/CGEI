@@ -5,11 +5,10 @@
 ## como devem atuar.
 
 
+import errno
 import socket
-import sys
-import time
-from threading import Thread
 
+# from threading import Thread
 from protocolo import Dispositivo
 
 
@@ -41,21 +40,23 @@ class Gerenciador(Dispositivo):
         self.server_socket.listen(5)  # 5 queue espera de conexões
         print(f"Gerenciador escutando em {host}:{port}")
 
+        ## dict conn and addr => (conn, addr)
+        conn_cliente, addr_cliente = self.server_socket.accept()
+
         try:
             while True:
-                conn_cliente, address_cliente = self.server_socket.accept()
+                with conn_cliente:
+                    print(f"Connected by {addr_cliente}")
 
-                print(f"Nova conexão estabelecida de {address_cliente}")
-
-                # thread para cliente especifico
-                # threadCliente = Thread(target=self.tratar_cliente, args=(conn_cliente,))
-                # threadCliente.start()
+                    self.tratar_cliente(conn_cliente, addr_cliente)
 
         except KeyboardInterrupt:
-            print("\nEncerrando Gerenciador.")
-            self.server_socket.close()
+            print("Gerenciador encerrando atividades...")
+        except OSError as e:
+            if e.errno == errno.EADDRINUSE:
+                print("Port already in use")
 
-    def tratar_cliente(self, conn_cliente):
+    def tratar_cliente(self, conn_cliente, addr_client):
         try:
             while True:
                 dados = conn_cliente.recv(1024)
