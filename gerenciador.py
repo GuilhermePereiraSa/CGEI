@@ -23,8 +23,8 @@ class Gerenciador(Dispositivo):
 
         # processa proprio para escutar
 
-    def criar_mensagem(self, msg_type: str, target_id: str, payload: str = "") -> bytes:
-        return super().criar_mensagem(msg_type, target_id, payload)
+    def criar_mensagem(self, tipo: str, target_id: str, payload: str = "") -> bytes:
+        return super().criar_mensagem(tipo, target_id, payload)
 
     def __repr__(self) -> str:
         return super().__repr__()

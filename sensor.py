@@ -1,7 +1,8 @@
+import random
 import socket
 import time
-import random
 from threading import Thread
+
 from protocolo import Dispositivo
 
 """
@@ -24,22 +25,22 @@ class Sensor(Dispositivo):
     def conectar(self):
         try:
             self.cliente_socket.connect((self.host, self.port))
-            print(f"[{self.id_str}] Conectado ao Gerenciador em {self.host}:{self.port}")
-            
+            print(
+                f"[{self.id_str}] Conectado ao Gerenciador em {self.host}:{self.port}"
+            )
+
             # Requisito 1.2: Sensores devem se conectar e se identificar
             msg_identificacao = self.criar_mensagem(
-                msg_type="HELLO", 
-                target_id="GERENCIADOR", 
-                payload="IDENTIFICACAO_SENSOR"
+                tipo="HELLO", target_id="GERENCIADOR", payload="IDENTIFICACAO_SENSOR"
             )
             self.cliente_socket.sendall(msg_identificacao)
-            
+
             self.rodando = True
-            
+
             # Requisito 1.3: Após conectar, enviar leitura a cada 1s
             thread_envio = Thread(target=self.enviar_leituras)
             thread_envio.start()
-            
+
         except ConnectionRefusedError:
             print(f"[{self.id_str}] Falha ao conectar. O Gerenciador está rodando?")
 
@@ -58,14 +59,12 @@ class Sensor(Dispositivo):
             while self.rodando:
                 dado = self.gerar_leitura_simulada()
                 msg_dados = self.criar_mensagem(
-                    msg_type="DATA", 
-                    target_id="GERENCIADOR", 
-                    payload=dado
+                    tipo="DATA", target_id="GERENCIADOR", payload=dado
                 )
                 self.cliente_socket.sendall(msg_dados)
                 print(f"[{self.id_str}] Dado enviado: {dado}")
-                time.sleep(1) # Requisito 1.3: envio a cada 1s
-                
+                time.sleep(1)  # Requisito 1.3: envio a cada 1s
+
         except (ConnectionResetError, BrokenPipeError):
             print(f"[{self.id_str}] Conexão com o Gerenciador foi perdida.")
             self.rodando = False
@@ -73,6 +72,7 @@ class Sensor(Dispositivo):
             print(f"\n[{self.id_str}] Encerrando sensor.")
             self.rodando = False
             self.cliente_socket.close()
+
 
 if __name__ == "__main__":
     # Exemplo de inicialização (pode rodar múltiplos em terminais diferentes)

@@ -3,8 +3,8 @@ import socket
 import time
 from threading import Thread
 
-from protocolo import Dispositivo
 import ambiente
+from protocolo import Dispositivo
 
 
 class Atuador(Dispositivo):
@@ -16,10 +16,7 @@ class Atuador(Dispositivo):
 
     def iniciar_atuador(self, host="localhost", port=5000):
         # thread responsável pela atuação contínua
-        thread_atuacao = Thread(
-            target=self.executar_atuacao,
-            daemon=True
-        )
+        thread_atuacao = Thread(target=self.executar_atuacao, daemon=True)
 
         thread_atuacao.start()
 
@@ -59,9 +56,7 @@ class Atuador(Dispositivo):
     def threeway_handshake(self):
         try:
             msg_conn = self.criar_mensagem(
-                "CONNECT",
-                "GERENCIADOR",
-                payload=self.id_str
+                "CONNECT", "GERENCIADOR", payload=self.id_str
             )
 
             self.sock.sendall(msg_conn)
@@ -85,12 +80,7 @@ class Atuador(Dispositivo):
                 resposta_dict["Payload"] == "Conectado"
                 and resposta_dict["Message-Type"] == "CONNECT"
             ):
-
-                msg_ack = self.criar_mensagem(
-                    "ACK",
-                    "GERENCIADOR",
-                    "OK"
-                )
+                msg_ack = self.criar_mensagem("ACK", "GERENCIADOR", "OK")
 
                 self.sock.sendall(msg_ack)
 
@@ -123,9 +113,7 @@ class Atuador(Dispositivo):
 
                 # ACK para gerenciador
                 ack = self.criar_mensagem(
-                    "ACK",
-                    "GERENCIADOR",
-                    f"{self.id_str} executou {comando}"
+                    "ACK", "GERENCIADOR", f"{self.id_str} executou {comando}"
                 )
 
                 self.sock.sendall(ack)
@@ -141,7 +129,6 @@ class Atuador(Dispositivo):
         while True:
             # Atua continuamente enquanto ligado
             if self.ligado:
-                
                 if "AQUEC" in self.id_str:
                     ambiente.TEMPERATURA += 0.5
 
