@@ -65,7 +65,7 @@ class Dispositivo:
         return sum(ord(c) for c in payload)
 
     # colocado um valor default para payload
-    def criar_mensagem(self, msg_type: str, target_id: str, payload: str = "") -> bytes:
+    def criar_mensagem(self, tipo: str, target_id: str, payload: str = "") -> bytes:
         # Criar uma mensagem padrao para o CGEI a ser enviada por socket
 
         length = len(payload)
@@ -75,7 +75,7 @@ class Dispositivo:
 
         mensagem = (
             f"Protocol-Name: CGEI\r\n"
-            f"Message-Type: {msg_type}\r\n"
+            f"Message-Type: {tipo}\r\n"
             f"Sender-ID: {self.id_str}\r\n"
             f"Target-ID: {target_id}\r\n"
             f"Length: {length}\r\n"
@@ -101,13 +101,85 @@ class Dispositivo:
     def tamanho_payload(self, payload: str) -> int:
         return len(payload.encode("utf-8"))
 
-    def verificar_payload(self, payload: str):  # -> bool:
+    def verificar_payload(self, tipo, payload: str):  # -> bool:
         # se nao esta com identificador unico dos atuadores
         # se nao esta com identificador unico dos sensores
         # se nao tem temperatura min max
         # se nao é um float
 
-        pass
+        if tipo == "CONNECT":
+            # Divide pelos "_" conforme especificação do dispositivo
+            partes = payload.split("_")
+            tipo = partes[0]
+            self.validar_tipo(tipo)
+
+        elif tipo == "ACK":
+            # Verifica se há mensagem indicando sucesso
+            if len(payload.strip()) == 0:
+                raise ValueError(
+                    "ERROR: ACK sem descrição"
+                )
+
+        elif tipo == "ERROR":
+            # Verifica se há mensagem indicando falha
+            if len(payload.strip()) == 0:
+                raise ValueError(
+                    "ERROR: ERROR sem descrição"
+                )
+
+        elif tipo == "COMMAND":
+            if payload not in payload_padroes:
+                raise ValueError(
+                    "ERROR: comando inválido"
+                )
+
+        elif tipo == "DATA":
+            try:
+                float(payload)
+            except ValueError:
+                raise ValueError(
+                    "ERROR: DATA deve conter valor numérico"
+                )
+
+        elif tipo == "READ_SENSOR":
+            partes = payload.split("_")
+            if partes[0] != "SENSOR":
+                raise ValueError(
+                    "ERROR: READ_SENSOR deve conter ID de sensor"
+                )
+
+        elif tipo == "RESPONSE":
+            try:
+                float(payload)
+            except ValueError:
+                raise ValueError(
+                    "ERROR: RESPONSE inválido"
+                )
+            
+        elif tipo == "CONFIG_LIMITS":
+            try:
+                variavel, minimo, maximo = payload.split(",")
+                variaveis_validas = [
+                    "TEMP",
+                    "UMID",
+                    "CO2"
+                ]
+
+                if variavel not in variaveis_validas:
+                    raise ValueError
+
+                minimo = float(minimo)
+                maximo = float(maximo)
+
+                if minimo >= maximo:
+                    raise ValueError(
+                        "ERROR: mínimo deve ser menor que máximo"
+                    )
+            except ValueError:
+                raise ValueError(
+                    "ERROR: CONFIG_LIMITS inválido"
+                )
+        return True
 
     def validar_msg(self, dict_header: dict[str, str]) -> bool:
         # checar erros no header
