@@ -73,6 +73,24 @@ class Sensor(Dispositivo):
             self.rodando = False
             self.cliente_socket.close()
 
+    def iniciar_sensor(self):
+        self.conectar()
+
+        try:
+            while True:
+                if self.rodando:
+                    time.sleep(1)
+                else:
+                    print(f"[{self.id_str}] Tentando reconectar em 5 segundos...")
+                    time.sleep(5)
+                    self.conectar()
+        except Exception as e:
+            print(f"[{self.id_str}] Erro inesperado na thread do sensor: {e}")
+        
+        finally:
+            self.rodando = False
+            self.cliente_socket.close()
+
 
 if __name__ == "__main__":
     # Exemplo de inicialização (pode rodar múltiplos em terminais diferentes)
