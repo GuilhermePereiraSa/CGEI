@@ -1,7 +1,7 @@
 import errno
 import socket
 import time
-
+from threading import Thread
 from protocolo import Dispositivo
 
 
@@ -107,3 +107,9 @@ class Client(Dispositivo):
             print(f"Erro na comunicação: {e}")
         finally:
             self.sock.close()
+
+
+if __name__ == "__main__":
+    cliente = Client("CLIENTE_1")
+
+    cliente.iniciar_requisicoes()

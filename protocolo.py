@@ -213,7 +213,14 @@ class Dispositivo:
         if self.calcular_checksum(payload_atual) != checksum_atual:
             print("Checksum incorreto. Erro na mensagem")
 
-        ## checar payload - completar verificar_payload
-        ## e utilizar o payload_padroes
+        try:
+            self.verificar_payload(
+                dict_header["Message-Type"],
+                dict_header["Payload"]
+            )
+
+        except ValueError as e:
+            print(e)
+            return False
 
         return True

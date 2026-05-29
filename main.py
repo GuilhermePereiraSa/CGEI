@@ -23,8 +23,6 @@ sensores = [
     Sensor("SENSOR_CO2_01"),
 ]
 
-cliente = Client("CLIENTE_1")
-
 threads = []
 
 # Thread gerenciador
@@ -53,13 +51,6 @@ for sensor in sensores:
 
     threads.append(t)
 
-# Thread cliente
-thread_cli = Thread(
-    target=cliente.iniciar_requisicoes
-)
-
-threads.append(thread_cli)
-
 
 if __name__ == "__main__":
     thread_ger.start()
@@ -70,5 +61,3 @@ if __name__ == "__main__":
     # inicia as outras threads
     for t in threads[1:]:
         t.start()
-
-    thread_cli.join()
