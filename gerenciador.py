@@ -8,6 +8,7 @@
 import errno
 import socket
 import time
+from threading import Thread
 
 import ambiente
 
@@ -18,15 +19,19 @@ from protocolo import Dispositivo
 class Gerenciador(Dispositivo):
     def __init__(self, id_completo: str):
         super().__init__(id_completo)
-        self.temperaturaMax = self.temperaturaMin = self.co2Max = self.co2Min = (
-            self.umidadeMax
-        ) = self.umidadeMin = 0
 
-        # # Gerenciador se comunica com todos os dispositivos
+        # min, max
+        self.temperaturas: list[float] = [0.0, 0.0]
+        self.co2: list[float] = [0.0, 0.0]
+        self.umidades: list[float] = [0.0, 0.0]
+
         # sockets dos dispositivos conectados
-        self.atuadores = {}
+        # 1_gerenciador-> n_atuadores e n_sensores
+        self.atuadores = {}  # id do atuador é o index dos atuadores + 1
         self.sensores = {}
-        self.cliente = None
+
+        # n_gerenciadores -> 1_cliente (processo proprio)
+        self.cliente = {}
 
         # Estado dos atuadores e histerese
         self.histerese = 2.0
@@ -39,16 +44,6 @@ class Gerenciador(Dispositivo):
             "ATUADOR_CO2_1": False,
         }
 
-        # limites configuráveis
-        self.temperaturaMax = 30.0
-        self.temperaturaMin = 20.0
-
-        self.co2Max = 1000.0
-        self.co2Min = 300.0
-
-        self.umidadeMax = 70.0
-        self.umidadeMin = 40.0
-
         # processa proprio para escutar
 
     def criar_mensagem(self, tipo: str, target_id: str, payload: str = "") -> bytes:
@@ -58,25 +53,22 @@ class Gerenciador(Dispositivo):
         return super().__repr__()
 
     def iniciar_escuta(self, host="0.0.0.0", port=5000):
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+        Thread(target=self.monitorar_variaveis, daemon=True).start()
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # reuse mesmo address caso reabra
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
         self.server_socket.bind((host, port))
-
         self.server_socket.listen(5)  # 5 queue espera de conexões
-        print(f"Gerenciador escutando em {host}:{port}")
 
-        ## dict conn and addr => (conn, addr)
-        conn_cliente, addr_cliente = self.server_socket.accept()
+        print(f"Gerenciador escutando em {host}:{port}")
 
         try:
             while True:
-                with conn_cliente:
-                    print(f"Connected by {addr_cliente}")
-
-                    self.tratar_cliente(conn_cliente, addr_cliente)
+                conn, addr = self.server_socket.accept()
+                print(f"Connected by {conn}")
+                self.tratar_conexao(conn, addr)
+                Thread(target=self.tratar_conexao(conn, addr), daemon=True).start()
 
         except KeyboardInterrupt:
             print("Gerenciador encerrando atividades...")
@@ -84,45 +76,100 @@ class Gerenciador(Dispositivo):
             if e.errno == errno.EADDRINUSE:
                 print("Port already in use")
 
-    def tratar_cliente(self, conn_cliente, addr_client):
+    def tratar_conexao(self, conn, addr):
         try:
             while True:
-                dados = conn_cliente.recv(1024)
+                dados = conn.recv(1024)
 
                 if not dados:
-                    print("Cliente desconectado")
+                    print(f"{addr} desconectado")
                     break
-                texto = dados.decode("utf-8")
 
-                # parser message
-                print(f"Mensagem recebida: {texto}")
+                msg_dict = self.abrir_mensagem(dados)
+                self.validar_msg(msg_dict)
+
+                sender = msg_dict["Sender-ID"]
+                tipo_msg = msg_dict["Message-Type"]
+                payload = msg_dict["Payload"]
+
+                print(f"\n[{sender}] -> {tipo_msg} | {payload}")
+
+                # Registro do dispositivo
+                if tipo_msg == "CONNECT":
+                    if "ATUADOR" in sender:
+                        self.atuadores[sender] = conn
+                        print(f"{sender} registrado como atuador")
+
+                    elif "SENSOR" in sender:
+                        self.sensores[sender] = conn
+                        print(f"{sender} registrado como sensor")
+
+                    elif "CLIENTE" in sender:
+                        self.cliente = conn
+                        print(f"{sender} registrado como cliente")
+
+                    resposta = self.criar_mensagem("CONNECT", sender, "Conectado")
+                    conn.sendall(resposta)
+
+                # Valores enviados pelos sensores
+                elif tipo_msg == "DATA":
+                    valor = float(payload)
+                    if "TEMP" in sender:
+                        ambiente.TEMPERATURA = valor
+                    elif "UMID" in sender:
+                        ambiente.UMIDADE = valor
+                    elif "CO2" in sender:
+                        ambiente.CO2 = valor
+
+                # ACK dos atuadores
+                elif tipo_msg == "ACK":
+                    print(f"ACK recebido: {payload}")
+
+                # Resposta para cliente READ_SENSOR e CONFIG_LIMITS
+
         except Exception as e:
-            print(f"Erro de conexão em {e}")
+            print(f"Erro de conexão: {e}")
+
         finally:
-            conn_cliente.close()
+            conn.close()
+
+    def enviar_comando(self, atuador_id, comando: str):
+
+        conn = self.atuadores.get(atuador_id)
+
+        if not conn:
+            return
+
+        msg = self.criar_mensagem("COMMAND", atuador_id, comando)
+
+        conn.sendall(msg)
+
+        self.estado_atuadores[atuador_id] = (
+            comando == "TURN_ON"  # Muda o estado para true ou false
+        )
+        print(f"Gerenciador enviou {comando} para {atuador_id}")
 
     def monitorar_variaveis(self):
-
         while True:
             controles = [
                 {
                     "valor": ambiente.TEMPERATURA,
-                    "min": self.temperaturaMin,
-                    "max": self.temperaturaMax,
+                    "min": self.temperaturas[0],
+                    "max": self.temperaturas[1],
                     "atuador_min": "ATUADOR_AQUEC_1",
                     "atuador_max": "ATUADOR_RESF_1",
                 },
                 {
                     "valor": ambiente.UMIDADE,
-                    "min": self.umidadeMin,
-                    "max": self.umidadeMax,
+                    "min": self.umidades[0],
+                    "max": self.umidades[1],
                     "atuador_min": "ATUADOR_IRRIG_1",
                     "atuador_max": None,
                 },
                 {
                     "valor": ambiente.CO2,
-                    "min": self.co2Min,
-                    "max": self.co2Max,
+                    "min": self.co2[0],
+                    "max": self.co2[1],
                     "atuador_min": "ATUADOR_CO2_1",
                     "atuador_max": None,
                 },
@@ -169,84 +216,5 @@ class Gerenciador(Dispositivo):
                 f"CO2={ambiente.CO2:.2f}"
             )
 
+            # cada 1 segundo
             time.sleep(1)
-
-    def tratar_conexao(self, conn, addr):
-        try:
-            while True:
-                dados = conn.recv(1024)
-
-                if not dados:
-                    print(f"{addr} desconectado")
-                    break
-
-                msg_dict = self.abrir_mensagem(dados)
-
-                self.validar_msg(msg_dict)
-
-                sender = msg_dict["Sender-ID"]
-                tipo_msg = msg_dict["Message-Type"]
-                payload = msg_dict["Payload"]
-
-                print(f"\n[{sender}] -> {tipo_msg} | {payload}")
-
-                # Registro do dispositivo
-                if tipo_msg == "CONNECT":
-                    if "ATUADOR" in sender:
-                        self.atuadores[sender] = conn
-                        print(f"{sender} registrado como atuador")
-
-                    elif "SENSOR" in sender:
-                        self.sensores[sender] = conn
-                        print(f"{sender} registrado como sensor")
-
-                    elif "CLIENTE" in sender:
-                        self.cliente = conn
-                        print(f"{sender} registrado como cliente")
-
-                    resposta = self.criar_mensagem("CONNECT", sender, "Conectado")
-
-                    conn.sendall(resposta)
-
-                # Valores enviados pelos sensores
-                elif tipo_msg == "DATA":
-                    valor = float(payload)
-
-                    if "TEMP" in sender:
-                        ambiente.TEMPERATURA = valor
-
-                    elif "UMID" in sender:
-                        ambiente.UMIDADE = valor
-
-                    elif "CO2" in sender:
-                        ambiente.CO2 = valor
-
-                # ACK dos atuadores
-                elif tipo_msg == "ACK":
-                    print(f"ACK recebido: {payload}")
-
-        except Exception as e:
-            print(f"Erro de conexão: {e}")
-
-        finally:
-            conn.close()
-
-    def enviar_comando(self, atuador_id, comando):
-
-        conn = self.atuadores.get(atuador_id)
-
-        if not conn:
-            print(f"{atuador_id} não conectado")
-            return
-
-        msg = self.criar_mensagem("COMMAND", atuador_id, comando)
-
-        conn.sendall(msg)
-
-        self.estado_atuadores[atuador_id] = (
-            comando == "TURN_ON"  # Muda o estado para true ou false
-        )
-
-        print(f"Gerenciador enviou {comando} para {atuador_id}")
-
-    # Executada pela thread inicializada em iniciar_escuta

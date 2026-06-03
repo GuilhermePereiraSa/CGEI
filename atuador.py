@@ -17,7 +17,6 @@ class Atuador(Dispositivo):
     def iniciar_atuador(self, host="localhost", port=5000):
         # thread responsável pela atuação contínua
         thread_atuacao = Thread(target=self.executar_atuacao, daemon=True)
-
         thread_atuacao.start()
 
         while True:
@@ -34,10 +33,12 @@ class Atuador(Dispositivo):
                 self.sock.connect((host, port))
 
                 # envia msg de connect
-                self.threeway_handshake()
-
-                # trata os comandos que chegarem do gerenciador
-                self.tratar_comandos()
+                if self.threeway_handshake(self.sock):
+                    # trata os comandos que chegarem do gerenciador
+                    self.tratar_comandos()
+                else:
+                    self.sock.close()
+                    time.sleep(2)
 
                 break
 
@@ -47,47 +48,9 @@ class Atuador(Dispositivo):
 
             except TimeoutError:
                 print("Connection timed out. Retrying")
-                continue
-
             except OSError as e:
                 if e.errno == errno.EADDRINUSE:
                     print("Port already in use")
-
-    def threeway_handshake(self):
-        try:
-            msg_conn = self.criar_mensagem(
-                "CONNECT", "GERENCIADOR", payload=self.id_str
-            )
-
-            self.sock.sendall(msg_conn)
-
-            # caso exceda o tempo tem o timeout
-            resposta_ack = self.sock.recv(1024)
-
-            resposta_dict = self.abrir_mensagem(resposta_ack)
-
-            self.validar_msg(resposta_dict)
-
-            print(f"\nGerenciador respondeu com: {resposta_dict.get('Payload')}")
-
-            ## ERROR
-            if resposta_dict["Payload"] == "ERROR":
-                raise ValueError(
-                    "ERROR: tentativa de conexão com o gerenciador falhou."
-                )
-
-            if (
-                resposta_dict["Payload"] == "Conectado"
-                and resposta_dict["Message-Type"] == "CONNECT"
-            ):
-                msg_ack = self.criar_mensagem("ACK", "GERENCIADOR", "OK")
-
-                self.sock.sendall(msg_ack)
-
-                print("\n[+] Handshake estabelecido com sucesso!\n")
-
-        except Exception as e:
-            print(f"Erro na comunicação: {e}")
 
     def tratar_comandos(self):
         while True:

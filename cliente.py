@@ -11,7 +11,7 @@ class Client(Dispositivo):
     def __init__(self, id_completo: str):
         super().__init__(id_completo)
 
-    def iniciar_requisicoes(self, host="localhost", port=5000):
+    def iniciar_cliente(self, host="localhost", port=5000):
         while True:
             try:
                 # Conectando com o server
@@ -24,7 +24,7 @@ class Client(Dispositivo):
                 self.sock.connect((host, port))
 
                 # envia msg de connect
-                self.threeway_handshake()
+                self.threeway_handshake(self.sock)
 
                 # sendall é o send repetitivamente
                 self.tratar_gerenciador()
@@ -40,38 +40,6 @@ class Client(Dispositivo):
             except OSError as e:
                 if e.errno == errno.EADDRINUSE:
                     print("Port already in use")
-
-    def threeway_handshake(self):
-        try:
-            msg_conn = self.criar_mensagem(
-                "CONNECT", "GERENCIADOR", payload=self.id_str
-            )
-            self.sock.sendall(msg_conn)
-
-            # caso exceda o tempo tem o timeout
-            resposta_ack = self.sock.recv(1024)
-
-            resposta_dict = self.abrir_mensagem(resposta_ack)
-
-            self.validar_msg(resposta_dict)
-            print(f"\nGerenciador respondeu com: {resposta_dict.get('Payload')}")
-
-            ## ERROR
-            if resposta_dict["Payload"] == "ERROR":
-                raise ValueError(
-                    "ERROR: tentativa de conexão com o gerenciador falhou."
-                )
-            if (
-                resposta_dict["Payload"] == "Conectado"
-                and resposta_dict["Message-Type"] == "CONNECT"  # ACK ou CONNECT?
-            ):
-                msg_ack = self.criar_mensagem("ACK", "GERENCIADOR", "OK")
-                self.sock.sendall(msg_ack)
-
-                print("\n[+] Handshake estabelecido com sucesso!\n")
-
-        except Exception as e:
-            print(f"Erro na comunicação: {e}")
 
     def tratar_gerenciador(self):
         try:
@@ -113,4 +81,4 @@ class Client(Dispositivo):
 if __name__ == "__main__":
     cliente = Client("CLIENTE_1")
 
-    cliente.iniciar_requisicoes()
+    cliente.iniciar_cliente()

@@ -116,54 +116,38 @@ class Dispositivo:
         elif tipo == "ACK":
             # Verifica se há mensagem indicando sucesso
             if len(payload.strip()) == 0:
-                raise ValueError(
-                    "ERROR: ACK sem descrição"
-                )
+                raise ValueError("ERROR: ACK sem descrição")
 
         elif tipo == "ERROR":
             # Verifica se há mensagem indicando falha
             if len(payload.strip()) == 0:
-                raise ValueError(
-                    "ERROR: ERROR sem descrição"
-                )
+                raise ValueError("ERROR: ERROR sem descrição")
 
         elif tipo == "COMMAND":
             if payload not in payload_padroes:
-                raise ValueError(
-                    "ERROR: comando inválido"
-                )
+                raise ValueError("ERROR: comando inválido")
 
         elif tipo == "DATA":
             try:
                 float(payload)
             except ValueError:
-                raise ValueError(
-                    "ERROR: DATA deve conter valor numérico"
-                )
+                raise ValueError("ERROR: DATA deve conter valor numérico")
 
         elif tipo == "READ_SENSOR":
             partes = payload.split("_")
             if partes[0] != "SENSOR":
-                raise ValueError(
-                    "ERROR: READ_SENSOR deve conter ID de sensor"
-                )
+                raise ValueError("ERROR: READ_SENSOR deve conter ID de sensor")
 
         elif tipo == "RESPONSE":
             try:
                 float(payload)
             except ValueError:
-                raise ValueError(
-                    "ERROR: RESPONSE inválido"
-                )
-            
+                raise ValueError("ERROR: RESPONSE inválido")
+
         elif tipo == "CONFIG_LIMITS":
             try:
                 variavel, minimo, maximo = payload.split(",")
-                variaveis_validas = [
-                    "TEMP",
-                    "UMID",
-                    "CO2"
-                ]
+                variaveis_validas = ["TEMP", "UMID", "CO2"]
 
                 if variavel not in variaveis_validas:
                     raise ValueError
@@ -172,13 +156,9 @@ class Dispositivo:
                 maximo = float(maximo)
 
                 if minimo >= maximo:
-                    raise ValueError(
-                        "ERROR: mínimo deve ser menor que máximo"
-                    )
+                    raise ValueError("ERROR: mínimo deve ser menor que máximo")
             except ValueError:
-                raise ValueError(
-                    "ERROR: CONFIG_LIMITS inválido"
-                )
+                raise ValueError("ERROR: CONFIG_LIMITS inválido")
         return True
 
     def validar_msg(self, dict_header: dict[str, str]) -> bool:
@@ -214,13 +194,45 @@ class Dispositivo:
             print("Checksum incorreto. Erro na mensagem")
 
         try:
-            self.verificar_payload(
-                dict_header["Message-Type"],
-                dict_header["Payload"]
-            )
+            self.verificar_payload(dict_header["Message-Type"], dict_header["Payload"])
 
         except ValueError as e:
             print(e)
             return False
 
         return True
+
+    def threeway_handshake(self, sock) -> bool:
+        try:
+            msg_conn = self.criar_mensagem(
+                "CONNECT", "GERENCIADOR", payload=self.id_str
+            )
+            sock.sendall(msg_conn)
+
+            # caso exceda o tempo tem o timeout
+            resposta_ack = sock.recv(1024)
+
+            resposta_dict = self.abrir_mensagem(resposta_ack)
+
+            self.validar_msg(resposta_dict)
+            print(f"\nGerenciador respondeu com: {resposta_dict.get('Payload')}")
+
+            ## ERROR
+            if resposta_dict["Payload"] == "ERROR":
+                raise ValueError(
+                    "ERROR: tentativa de conexão com o gerenciador falhou."
+                )
+            if (
+                resposta_dict["Payload"] == "Conectado"
+                and resposta_dict["Message-Type"] == "CONNECT"  # ACK ou CONNECT?
+            ):
+                msg_ack = self.criar_mensagem("ACK", "GERENCIADOR", "OK")
+                sock.sendall(msg_ack)
+
+                print("\n[+] Handshake estabelecido com sucesso!\n")
+                return True
+            return False
+
+        except Exception as e:
+            print(f"Erro na comunicação: {e}")
+            return False

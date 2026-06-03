@@ -29,11 +29,7 @@ class Sensor(Dispositivo):
                 f"[{self.id_str}] Conectado ao Gerenciador em {self.host}:{self.port}"
             )
 
-            # Requisito 1.2: Sensores devem se conectar e se identificar
-            msg_identificacao = self.criar_mensagem(
-                tipo="CONNECT", target_id="GERENCIADOR", payload="IDENTIFICACAO_SENSOR"
-            )
-            self.cliente_socket.sendall(msg_identificacao)
+            self.threeway_handshake(self.cliente_socket)
 
             self.rodando = True
 
