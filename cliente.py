@@ -2,6 +2,7 @@ import errno
 import socket
 import time
 from threading import Thread
+
 from protocolo import Dispositivo
 
 

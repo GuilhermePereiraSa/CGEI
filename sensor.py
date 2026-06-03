@@ -31,7 +31,7 @@ class Sensor(Dispositivo):
 
             # Requisito 1.2: Sensores devem se conectar e se identificar
             msg_identificacao = self.criar_mensagem(
-                tipo="HELLO", target_id="GERENCIADOR", payload="IDENTIFICACAO_SENSOR"
+                tipo="CONNECT", target_id="GERENCIADOR", payload="IDENTIFICACAO_SENSOR"
             )
             self.cliente_socket.sendall(msg_identificacao)
 
@@ -86,7 +86,7 @@ class Sensor(Dispositivo):
                     self.conectar()
         except Exception as e:
             print(f"[{self.id_str}] Erro inesperado na thread do sensor: {e}")
-        
+
         finally:
             self.rodando = False
             self.cliente_socket.close()
