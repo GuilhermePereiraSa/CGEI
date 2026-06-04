@@ -6,7 +6,6 @@ from threading import Thread
 import ambiente
 from protocolo import Dispositivo
 
-
 class Atuador(Dispositivo):
     def __init__(self, id_completo: str):
         super().__init__(id_completo)
@@ -28,7 +27,7 @@ class Atuador(Dispositivo):
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
                 # DEFINICAO TEMPO LIMITE
-                self.sock.settimeout(5.0)
+                self.sock.settimeout(None)
 
                 self.sock.connect((host, port))
 
@@ -43,14 +42,14 @@ class Atuador(Dispositivo):
                 break
 
             except ConnectionRefusedError:
-                print("Connection refused: Server not listening")
+                print(f"[{self.id_str}] Connection refused: Server not listening")
                 time.sleep(2)
 
             except TimeoutError:
-                print("Connection timed out. Retrying")
+                print(f"[{self.id_str}] Connection timed out. Retrying")
             except OSError as e:
                 if e.errno == errno.EADDRINUSE:
-                    print("Port already in use")
+                    print(f"[{self.id_str}] Port already in use")
 
     def tratar_comandos(self):
         while True:
@@ -66,7 +65,7 @@ class Atuador(Dispositivo):
 
                 comando = msg_dict["Payload"]
 
-                print(f"\nAtuador recebeu o comando: {comando}")
+                print(f"\n[{self.id_str}] recebeu o comando: {comando}")
 
                 if comando == "TURN_ON":
                     self.ligado = True
@@ -82,10 +81,10 @@ class Atuador(Dispositivo):
                 self.sock.sendall(ack)
 
             except ValueError:
-                print("\nA mensagem enviada pelo Gerenciador possui erros")
+                print(f"\n[{self.id_str}]A mensagem enviada pelo Gerenciador possui erros")
 
             except Exception as e:
-                print(f"Erro no atuador: {e}")
+                print(f"[{self.id_str}] Erro ao tratar comando: {e}")
                 break
 
     def executar_atuacao(self):
@@ -93,22 +92,39 @@ class Atuador(Dispositivo):
             # Atua continuamente enquanto ligado
             if self.ligado:
                 if "AQUEC" in self.id_str:
-                    ambiente.TEMPERATURA += 0.5
+                    campo = "TEMP"
+                    delta = 0.5
 
                 elif "RESF" in self.id_str:
-                    ambiente.TEMPERATURA -= 0.5
+                    campo = "TEMP"
+                    delta = -0.5
 
                 elif "IRRIG" in self.id_str:
-                    ambiente.UMIDADE += 1
+                    campo = "UMID"
+                    delta = 1
 
                 elif "CO2" in self.id_str:
-                    ambiente.CO2 += 10
+                    campo = "CO2"
+                    delta = 10
 
-                print(
-                    f"[{self.id_str}] "
-                    f"TEMP={ambiente.TEMPERATURA:.2f} | "
-                    f"UMID={ambiente.UMIDADE:.2f} | "
-                    f"CO2={ambiente.CO2:.2f}"
-                )
+                ambiente.alterar_valor(campo, delta)
 
             time.sleep(1)
+
+if __name__ == "__main__":
+    atuadores = [
+        Atuador("ATUADOR_AQUEC_1"),
+        Atuador("ATUADOR_RESF_1"),
+        Atuador("ATUADOR_IRRIG_1"),
+        Atuador("ATUADOR_CO2_1"),
+    ]
+
+    threads = []
+
+    for atuador in atuadores:
+        t = Thread(target=atuador.iniciar_atuador)
+        t.start()
+        threads.append(t)
+
+    for t in threads:
+        t.join()

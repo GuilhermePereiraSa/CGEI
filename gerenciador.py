@@ -20,10 +20,18 @@ class Gerenciador(Dispositivo):
     def __init__(self, id_completo: str):
         super().__init__(id_completo)
 
+        # O gerenciador só guarda o valor da última leitura enviada pelos sensores,
+        # ele não lê o arquivo diretamente
+        self.ambiente_local = {
+            "TEMP": 0.0,
+            "UMID": 0.0,
+            "CO2": 0.0
+        }
+
         # min, max
-        self.temperaturas: list[float] = [0.0, 0.0]
-        self.co2: list[float] = [0.0, 0.0]
-        self.umidades: list[float] = [0.0, 0.0]
+        self.temperaturas = [18.0, 26.0]
+        self.umidades = [40.0, 70.0]
+        self.co2 = [300.0, 800.0]
 
         # sockets dos dispositivos conectados
         # 1_gerenciador-> n_atuadores e n_sensores
@@ -53,7 +61,6 @@ class Gerenciador(Dispositivo):
         return super().__repr__()
 
     def iniciar_escuta(self, host="0.0.0.0", port=5000):
-
         Thread(target=self.monitorar_variaveis, daemon=True).start()
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # reuse mesmo address caso reabra
@@ -67,8 +74,8 @@ class Gerenciador(Dispositivo):
             while True:
                 conn, addr = self.server_socket.accept()
                 print(f"Connected by {conn}")
-                self.tratar_conexao(conn, addr)
-                Thread(target=self.tratar_conexao(conn, addr), daemon=True).start()
+                # self.tratar_conexao(conn, addr)
+                Thread(target=self.tratar_conexao, args=(conn, addr), daemon=True).start()
 
         except KeyboardInterrupt:
             print("Gerenciador encerrando atividades...")
@@ -92,8 +99,6 @@ class Gerenciador(Dispositivo):
                 tipo_msg = msg_dict["Message-Type"]
                 payload = msg_dict["Payload"]
 
-                print(f"\n[{sender}] -> {tipo_msg} | {payload}")
-
                 # Registro do dispositivo
                 if tipo_msg == "CONNECT":
                     if "ATUADOR" in sender:
@@ -107,19 +112,25 @@ class Gerenciador(Dispositivo):
                     elif "CLIENTE" in sender:
                         self.cliente = conn
                         print(f"{sender} registrado como cliente")
-
-                    resposta = self.criar_mensagem("CONNECT", sender, "Conectado")
+                    
+                    # Essa msg não contém mais o payload "Conectado", para ser possível validação correta do payload das outras msgs do tipo CONNECT
+                    resposta = self.criar_mensagem("CONNECT", sender, "GERENCIADOR")
                     conn.sendall(resposta)
 
                 # Valores enviados pelos sensores
                 elif tipo_msg == "DATA":
                     valor = float(payload)
+
                     if "TEMP" in sender:
-                        ambiente.TEMPERATURA = valor
+                        campo = "TEMP"
                     elif "UMID" in sender:
-                        ambiente.UMIDADE = valor
+                        campo = "UMID"
                     elif "CO2" in sender:
-                        ambiente.CO2 = valor
+                        campo = "CO2"
+                    
+                    # Salva a última leitura no ambiente local para o gerenciador tomar 
+                    # decisões na função monitorar_variaveis
+                    self.ambiente_local[campo] = valor
 
                 # ACK dos atuadores
                 elif tipo_msg == "ACK":
@@ -134,7 +145,6 @@ class Gerenciador(Dispositivo):
             conn.close()
 
     def enviar_comando(self, atuador_id, comando: str):
-
         conn = self.atuadores.get(atuador_id)
 
         if not conn:
@@ -151,23 +161,24 @@ class Gerenciador(Dispositivo):
 
     def monitorar_variaveis(self):
         while True:
+
             controles = [
                 {
-                    "valor": ambiente.TEMPERATURA,
+                    "valor": self.ambiente_local["TEMP"],
                     "min": self.temperaturas[0],
                     "max": self.temperaturas[1],
                     "atuador_min": "ATUADOR_AQUEC_1",
                     "atuador_max": "ATUADOR_RESF_1",
                 },
                 {
-                    "valor": ambiente.UMIDADE,
+                    "valor": self.ambiente_local["UMID"],
                     "min": self.umidades[0],
                     "max": self.umidades[1],
                     "atuador_min": "ATUADOR_IRRIG_1",
                     "atuador_max": None,
                 },
                 {
-                    "valor": ambiente.CO2,
+                    "valor": self.ambiente_local["CO2"],
                     "min": self.co2[0],
                     "max": self.co2[1],
                     "atuador_min": "ATUADOR_CO2_1",
@@ -208,13 +219,17 @@ class Gerenciador(Dispositivo):
                         and self.estado_atuadores[atuador_min]
                     ):
                         self.enviar_comando(atuador_min, "TURN_OFF")
-
+            
             print(
                 f"[AMBIENTE] "
-                f"TEMP={ambiente.TEMPERATURA:.2f} | "
-                f"UMID={ambiente.UMIDADE:.2f} | "
-                f"CO2={ambiente.CO2:.2f}"
+                f"TEMPERATURA={self.ambiente_local["TEMP"]:.2f} | "
+                f"UMIDADE={self.ambiente_local["UMID"]:.2f} | "
+                f"CO2={self.ambiente_local["CO2"]:.2f}"
             )
-
+            
             # cada 1 segundo
             time.sleep(1)
+
+if __name__ == "__main__":
+    gerenciador = Gerenciador("GERENCIADOR")
+    gerenciador.iniciar_escuta()

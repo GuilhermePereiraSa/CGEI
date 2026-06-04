@@ -2,7 +2,7 @@ import random
 import socket
 import time
 from threading import Thread
-
+import ambiente
 from protocolo import Dispositivo
 
 """
@@ -40,34 +40,49 @@ class Sensor(Dispositivo):
         except ConnectionRefusedError:
             print(f"[{self.id_str}] Falha ao conectar. O Gerenciador está rodando?")
 
-    def gerar_leitura_simulada(self) -> str:
-        # Simula dados dependendo da função do sensor
-        if self.funcao == "TEMP":
-            return str(round(random.uniform(15.0, 35.0), 2))
-        elif self.funcao == "UMID":
-            return str(round(random.uniform(30.0, 80.0), 2))
-        elif self.funcao == "CO2":
-            return str(round(random.uniform(300.0, 800.0), 2))
-        return "0.0"
+    # def gerar_leitura_simulada(self) -> str:
+    #     # Simula dados dependendo da função do sensor
+    #     if self.funcao == "TEMP":
+    #         return str(round(random.uniform(15.0, 35.0), 2))
+    #     elif self.funcao == "UMID":
+    #         return str(round(random.uniform(30.0, 80.0), 2))
+    #     elif self.funcao == "CO2":
+    #         return str(round(random.uniform(300.0, 800.0), 2))
+    #     return "0.0"
 
+    def obter_leitura(self):
+        dados = ambiente.ler_ambiente()
+
+        if self.funcao == "TEMP":
+            return dados["TEMP"]
+        elif self.funcao == "UMID":
+            return dados["UMID"]
+        elif self.funcao == "CO2":
+            return dados["CO2"]
+        
     def enviar_leituras(self):
         try:
             while self.rodando:
-                dado = self.gerar_leitura_simulada()
-                msg_dados = self.criar_mensagem(
-                    tipo="DATA", target_id="GERENCIADOR", payload=dado
-                )
-                self.cliente_socket.sendall(msg_dados)
-                print(f"[{self.id_str}] Dado enviado: {dado}")
-                time.sleep(1)  # Requisito 1.3: envio a cada 1s
+                try:
+                    dado = self.obter_leitura()
+                    msg_dados = self.criar_mensagem(
+                        tipo="DATA", target_id="GERENCIADOR", payload=str(dado)
+                    )
+                    self.cliente_socket.sendall(msg_dados)
+                    print(f"[{self.id_str}] Dado enviado: {dado}")
+                    time.sleep(1)  # Requisito 1.3: envio a cada 1s
 
-        except (ConnectionResetError, BrokenPipeError):
-            print(f"[{self.id_str}] Conexão com o Gerenciador foi perdida.")
+                except (ConnectionResetError, BrokenPipeError):
+                    print(f"[{self.id_str}] Conexão com o Gerenciador foi perdida.")
+                    self.rodando = False
+                except KeyboardInterrupt:
+                    print(f"\n[{self.id_str}] Encerrando sensor.")
+                    self.rodando = False
+                    self.cliente_socket.close()
+                    
+        except Exception as e:
+            print(f"[{self.id_str}] thread morreu: {e}")
             self.rodando = False
-        except KeyboardInterrupt:
-            print(f"\n[{self.id_str}] Encerrando sensor.")
-            self.rodando = False
-            self.cliente_socket.close()
 
     def iniciar_sensor(self):
         self.conectar()
@@ -89,7 +104,18 @@ class Sensor(Dispositivo):
 
 
 if __name__ == "__main__":
-    # Exemplo de inicialização (pode rodar múltiplos em terminais diferentes)
-    # IDs no formato: COMPONENTE_FUNCAO_NUMERO
-    meu_sensor = Sensor("SENSOR_TEMP_01")
-    meu_sensor.conectar()
+    sensores = [
+        Sensor("SENSOR_TEMP_1"),
+        Sensor("SENSOR_UMID_1"),
+        Sensor("SENSOR_CO2_1"),
+    ]
+
+    threads = []
+
+    for sensor in sensores:
+        t = Thread(target=sensor.iniciar_sensor)
+        t.start()
+        threads.append(t)
+
+    for t in threads:
+        t.join()

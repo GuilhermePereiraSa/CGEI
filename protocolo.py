@@ -58,7 +58,9 @@ class Dispositivo:
 
     def validar_tipo(self, tipo: str):
         if tipo not in tipos_padroes:
-            raise ValueError("ERROR: Tipo de componente desconhecido")
+            raise ValueError(
+                f"ERROR: Tipo de componente desconhecido ({tipo})"
+            )
 
     def calcular_checksum(self, payload: str) -> int:
         # Soma os valores ASCII dos chars do payload
@@ -174,30 +176,33 @@ class Dispositivo:
         if dict_header["Message-Type"] not in msg_tipos_padroes:
             raise ValueError("ERROR: tipo da mensagem desconhecido")
 
-        if dict_header["Sender-ID"] not in tipos_padroes:
-            raise ValueError("ERROR: tipo de componente do remetente desconhecido")
+        # checa conteudo do sender-id
+        sender_id = dict_header["Sender-ID"]
+        tipo_sender = sender_id.split("_")[0]
+        self.validar_tipo(tipo_sender)
 
         # checa conteudo do target-id
         target_id = dict_header["Target-ID"]
-        self.validar_tipo(target_id)
+        tipo_target = target_id.split("_")[0]
+        self.validar_tipo(tipo_target)
 
-        if dict_header["Length"] != self.tamanho_payload(dict_header["Payload"]):
+        if int(dict_header["Length"]) != self.tamanho_payload(dict_header["Payload"]):
             raise ValueError(
                 "ERROR: valor do LENGTH não condiz com tamanho do payload\n"
             )
 
         # checar conteudo checksum
         payload_atual = dict_header["Payload"]
-        checksum_atual = dict_header["Checksum"]
+        checksum_atual = int(dict_header["Checksum"])
 
         if self.calcular_checksum(payload_atual) != checksum_atual:
-            print("Checksum incorreto. Erro na mensagem")
+            print(f"\n[{self.id_str}] Checksum incorreto. Erro na mensagem")
 
         try:
             self.verificar_payload(dict_header["Message-Type"], dict_header["Payload"])
 
         except ValueError as e:
-            print(e)
+            print(f"\n[{self.id_str}] {e}")
             return False
 
         return True
@@ -215,7 +220,7 @@ class Dispositivo:
             resposta_dict = self.abrir_mensagem(resposta_ack)
 
             self.validar_msg(resposta_dict)
-            print(f"\nGerenciador respondeu com: {resposta_dict.get('Payload')}")
+            print(f"\n[{self.id_str} Gerenciador respondeu com: {resposta_dict.get('Payload')}")
 
             ## ERROR
             if resposta_dict["Payload"] == "ERROR":
@@ -223,16 +228,16 @@ class Dispositivo:
                     "ERROR: tentativa de conexão com o gerenciador falhou."
                 )
             if (
-                resposta_dict["Payload"] == "Conectado"
+                resposta_dict["Payload"] == "GERENCIADOR" # Alterado (antes era conectado)
                 and resposta_dict["Message-Type"] == "CONNECT"  # ACK ou CONNECT?
             ):
                 msg_ack = self.criar_mensagem("ACK", "GERENCIADOR", "OK")
                 sock.sendall(msg_ack)
 
-                print("\n[+] Handshake estabelecido com sucesso!\n")
+                print(f"\n[{self.id_str}] Handshake estabelecido com sucesso!\n")
                 return True
             return False
 
         except Exception as e:
-            print(f"Erro na comunicação: {e}")
+            print(f"\n[{self.id_str}] Erro na comunicação: {e}")
             return False
