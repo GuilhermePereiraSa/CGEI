@@ -1,7 +1,6 @@
 import errno
 import socket
 import time
-from threading import Thread
 
 from protocolo import Dispositivo
 
@@ -52,25 +51,38 @@ class Client(Dispositivo):
                 print("4. Configurar CO2")
                 print("5. Sair ")
 
-                opcao = int(input("Escolha: "))
+                opcao = input("Escolha: ")
 
-                if opcao == 1:
-                    pass
-                elif opcao == 2:
-                    pass
-                elif opcao == 3:
-                    pass
-                elif opcao == 4:
-                    pass
-                elif opcao == 5:
+                if opcao == "1":
+                    sensor_id = input("Digite o ID do Sensor: (ex: SENSOR_TEMP_1): ")
+                    msg = self.criar_mensagem("READ_SENSOR", "GERENCIADOR", sensor_id)
+                    self.sock.sendall(msg)
+
+                    resposta_gen = self.sock.recv(1024)
+                    resp_dict = self.abrir_mensagem(resposta_gen)
+                    print(
+                        f"\n=> Valor atual de {sensor_id}: {resp_dict.get('Payload')}"
+                    )
+                elif opcao in ["2", "3", "4"]:
+                    dict_variaveis = {"2": "TEMP", "3": "UMID", "4": "CO2"}
+                    variavel = dict_variaveis[opcao]
+
+                    min = input(f"Digite o límite mínimo para esta {variavel}: ")
+                    max = input(f"Digite o límite máximo para esta {variavel}: ")
+
+                    payload = f"{variavel},{min},{max}"
+                    msg = self.criar_mensagem("CONFIG_LIMITS", "GERENCIADOR", payload)
+                    self.sock.sendall(msg)
+
+                    resposta_gen = self.sock.recv(1024)
+                    resp_dict = self.abrir_mensagem(resposta_gen)
+                    print(f"\n=> Gerenciador respondeu: {resp_dict.get('Payload')}")
+
+                elif opcao == "5":
+                    print("Encerrando cliente...")
                     break
                 else:
                     print("ERROR: Opção inválida")
-
-            # conversa normal?
-
-            # enviada msg de CONNECT
-            # espera a CONNECT + ACK
 
         except Exception as e:
             print(f"Erro na comunicação: {e}")

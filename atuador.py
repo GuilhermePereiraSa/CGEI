@@ -6,6 +6,7 @@ from threading import Thread
 import ambiente
 from protocolo import Dispositivo
 
+
 class Atuador(Dispositivo):
     def __init__(self, id_completo: str):
         super().__init__(id_completo)
@@ -81,7 +82,9 @@ class Atuador(Dispositivo):
                 self.sock.sendall(ack)
 
             except ValueError:
-                print(f"\n[{self.id_str}]A mensagem enviada pelo Gerenciador possui erros")
+                print(
+                    f"\n[{self.id_str}]A mensagem enviada pelo Gerenciador possui erros"
+                )
 
             except Exception as e:
                 print(f"[{self.id_str}] Erro ao tratar comando: {e}")
@@ -91,6 +94,8 @@ class Atuador(Dispositivo):
         while True:
             # Atua continuamente enquanto ligado
             if self.ligado:
+                campo = None
+                delta = 0
                 if "AQUEC" in self.id_str:
                     campo = "TEMP"
                     delta = 0.5
@@ -107,9 +112,11 @@ class Atuador(Dispositivo):
                     campo = "CO2"
                     delta = 10
 
-                ambiente.alterar_valor(campo, delta)
+                if campo is not None:
+                    ambiente.alterar_valor(campo, delta)
 
             time.sleep(1)
+
 
 if __name__ == "__main__":
     atuadores = [

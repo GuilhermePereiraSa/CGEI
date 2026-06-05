@@ -10,8 +10,6 @@ import socket
 import time
 from threading import Thread
 
-import ambiente
-
 # from threading import Thread
 from protocolo import Dispositivo
 
@@ -22,11 +20,7 @@ class Gerenciador(Dispositivo):
 
         # O gerenciador só guarda o valor da última leitura enviada pelos sensores,
         # ele não lê o arquivo diretamente
-        self.ambiente_local = {
-            "TEMP": 0.0,
-            "UMID": 0.0,
-            "CO2": 0.0
-        }
+        self.ambiente_local = {"TEMP": 0.0, "UMID": 0.0, "CO2": 0.0}
 
         # min, max
         self.temperaturas = [18.0, 26.0]
@@ -75,7 +69,9 @@ class Gerenciador(Dispositivo):
                 conn, addr = self.server_socket.accept()
                 print(f"Connected by {conn}")
                 # self.tratar_conexao(conn, addr)
-                Thread(target=self.tratar_conexao, args=(conn, addr), daemon=True).start()
+                Thread(
+                    target=self.tratar_conexao, args=(conn, addr), daemon=True
+                ).start()
 
         except KeyboardInterrupt:
             print("Gerenciador encerrando atividades...")
@@ -112,7 +108,7 @@ class Gerenciador(Dispositivo):
                     elif "CLIENTE" in sender:
                         self.cliente = conn
                         print(f"{sender} registrado como cliente")
-                    
+
                     # Essa msg não contém mais o payload "Conectado", para ser possível validação correta do payload das outras msgs do tipo CONNECT
                     resposta = self.criar_mensagem("CONNECT", sender, "GERENCIADOR")
                     conn.sendall(resposta)
@@ -120,6 +116,7 @@ class Gerenciador(Dispositivo):
                 # Valores enviados pelos sensores
                 elif tipo_msg == "DATA":
                     valor = float(payload)
+                    campo = ""
 
                     if "TEMP" in sender:
                         campo = "TEMP"
@@ -127,8 +124,8 @@ class Gerenciador(Dispositivo):
                         campo = "UMID"
                     elif "CO2" in sender:
                         campo = "CO2"
-                    
-                    # Salva a última leitura no ambiente local para o gerenciador tomar 
+
+                    # Salva a última leitura no ambiente local para o gerenciador tomar
                     # decisões na função monitorar_variaveis
                     self.ambiente_local[campo] = valor
 
@@ -136,7 +133,39 @@ class Gerenciador(Dispositivo):
                 elif tipo_msg == "ACK":
                     print(f"ACK recebido: {payload}")
 
-                # Resposta para cliente READ_SENSOR e CONFIG_LIMITS
+                elif tipo_msg == "READ_SENSOR":
+                    sensor_id = payload
+                    if "TEMP" in sensor_id:
+                        valor = self.ambiente_local["TEMP"]
+                    elif "UMID" in sensor_id:
+                        valor = self.ambiente_local["UMID"]
+                    elif "CO2" in sensor_id:
+                        valor = self.ambiente_local["CO2"]
+                    else:
+                        valor = -1.0
+
+                    resposta = self.criar_mensagem("RESPONSE", sender, str(valor))
+                    conn.sendall(resposta)
+
+                elif tipo_msg == "CONFIG_LIMITS":
+                    # VAR,min,max
+                    partes = payload.split(",")
+                    if len(payload) == 3:
+                        var = partes[0]
+                        min = partes[1]
+                        max = partes[2]
+
+                        if var == "TEMP":
+                            self.temperaturas = [min, max]
+                        elif var == "UMID":
+                            self.umidades = [min, max]
+                        elif var == "CO2":
+                            self.co2 = [min, max]
+
+                        ack = self.criar_mensagem(
+                            "ACK", sender, "Limites atualizados com sucesso."
+                        )
+                        conn.sendall(ack)
 
         except Exception as e:
             print(f"Erro de conexão: {e}")
@@ -161,7 +190,6 @@ class Gerenciador(Dispositivo):
 
     def monitorar_variaveis(self):
         while True:
-
             controles = [
                 {
                     "valor": self.ambiente_local["TEMP"],
@@ -219,16 +247,17 @@ class Gerenciador(Dispositivo):
                         and self.estado_atuadores[atuador_min]
                     ):
                         self.enviar_comando(atuador_min, "TURN_OFF")
-            
+
             print(
                 f"[AMBIENTE] "
-                f"TEMPERATURA={self.ambiente_local["TEMP"]:.2f} | "
-                f"UMIDADE={self.ambiente_local["UMID"]:.2f} | "
-                f"CO2={self.ambiente_local["CO2"]:.2f}"
+                f"TEMPERATURA={self.ambiente_local['TEMP']:.2f} | "
+                f"UMIDADE={self.ambiente_local['UMID']:.2f} | "
+                f"CO2={self.ambiente_local['CO2']:.2f}"
             )
-            
+
             # cada 1 segundo
             time.sleep(1)
+
 
 if __name__ == "__main__":
     gerenciador = Gerenciador("GERENCIADOR")

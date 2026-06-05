@@ -1,7 +1,7 @@
-import random
 import socket
 import time
 from threading import Thread
+
 import ambiente
 from protocolo import Dispositivo
 
@@ -59,7 +59,7 @@ class Sensor(Dispositivo):
             return dados["UMID"]
         elif self.funcao == "CO2":
             return dados["CO2"]
-        
+
     def enviar_leituras(self):
         try:
             while self.rodando:
@@ -79,7 +79,7 @@ class Sensor(Dispositivo):
                     print(f"\n[{self.id_str}] Encerrando sensor.")
                     self.rodando = False
                     self.cliente_socket.close()
-                    
+
         except Exception as e:
             print(f"[{self.id_str}] thread morreu: {e}")
             self.rodando = False
