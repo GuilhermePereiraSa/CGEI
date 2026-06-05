@@ -150,17 +150,17 @@ class Gerenciador(Dispositivo):
                 elif tipo_msg == "CONFIG_LIMITS":
                     # VAR,min,max
                     partes = payload.split(",")
-                    if len(payload) == 3:
+                    if len(partes) == 3:
                         var = partes[0]
-                        min = partes[1]
-                        max = partes[2]
+                        minimo = float(partes[1])
+                        maximo = float(partes[2])
 
                         if var == "TEMP":
-                            self.temperaturas = [min, max]
+                            self.temperaturas = [minimo, maximo]
                         elif var == "UMID":
-                            self.umidades = [min, max]
+                            self.umidades = [minimo, maximo]
                         elif var == "CO2":
-                            self.co2 = [min, max]
+                            self.co2 = [minimo, maximo]
 
                         ack = self.criar_mensagem(
                             "ACK", sender, "Limites atualizados com sucesso."

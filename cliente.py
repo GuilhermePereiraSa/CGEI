@@ -67,10 +67,10 @@ class Client(Dispositivo):
                     dict_variaveis = {"2": "TEMP", "3": "UMID", "4": "CO2"}
                     variavel = dict_variaveis[opcao]
 
-                    min = input(f"Digite o límite mínimo para esta {variavel}: ")
-                    max = input(f"Digite o límite máximo para esta {variavel}: ")
+                    minimo = input(f"Digite o límite mínimo para esta {variavel}: ")
+                    maximo = input(f"Digite o límite máximo para esta {variavel}: ")
 
-                    payload = f"{variavel},{min},{max}"
+                    payload = f"{variavel},{minimo},{maximo}"
                     msg = self.criar_mensagem("CONFIG_LIMITS", "GERENCIADOR", payload)
                     self.sock.sendall(msg)
 

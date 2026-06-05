@@ -1,4 +1,5 @@
 import socket
+import sys
 import time
 from threading import Thread
 
@@ -119,3 +120,14 @@ if __name__ == "__main__":
 
     for t in threads:
         t.join()
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        id_sensor = sys.argv[1]
+
+    else:
+        id_sensor = "SENSOR_TEMP_1"
+
+    sensor = Sensor(id_sensor)
+    sensor.iniciar_sensor()
