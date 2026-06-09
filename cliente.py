@@ -53,6 +53,7 @@ class Client(Dispositivo):
 
                 opcao = input("Escolha: ")
 
+                # unica opcao de leitura
                 if opcao == "1":
                     sensor_id = input("Digite o ID do Sensor: (ex: SENSOR_TEMP_1): ")
                     msg = self.criar_mensagem("READ_SENSOR", "GERENCIADOR", sensor_id)
@@ -63,6 +64,7 @@ class Client(Dispositivo):
                     print(
                         f"\n=> Valor atual de {sensor_id}: {resp_dict.get('Payload')}"
                     )
+                # se for qualquer outra é de escrita
                 elif opcao in ["2", "3", "4"]:
                     dict_variaveis = {"2": "TEMP", "3": "UMID", "4": "CO2"}
                     variavel = dict_variaveis[opcao]
@@ -71,6 +73,7 @@ class Client(Dispositivo):
                     maximo = input(f"Digite o límite máximo para esta {variavel}: ")
 
                     payload = f"{variavel},{minimo},{maximo}"
+                    # envia no tipo, falado no relatorio
                     msg = self.criar_mensagem("CONFIG_LIMITS", "GERENCIADOR", payload)
                     self.sock.sendall(msg)
 

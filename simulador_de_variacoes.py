@@ -1,11 +1,16 @@
 import random
 import time
+
 import ambiente
+
+"""
+    Tem proposito de fazer alterações para simular um "sistema" real.
+"""
 
 
 class Simulador:
     def __init__(self):
-        self.intervalo = 60 # 1 minuto
+        self.intervalo = 60  # 1 minuto
         self.rodando = True
 
     def criar_variacoes(self):
@@ -30,6 +35,7 @@ class Simulador:
             )
 
             time.sleep(self.intervalo)
+
 
 if __name__ == "__main__":
     sim = Simulador()

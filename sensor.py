@@ -20,10 +20,10 @@ class Sensor(Dispositivo):
         super().__init__(id_completo)
         self.host = host
         self.port = port
-        self.cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.rodando = False
 
     def conectar(self):
+        self.cliente_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.cliente_socket.connect((self.host, self.port))
             print(

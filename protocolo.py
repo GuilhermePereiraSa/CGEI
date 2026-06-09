@@ -45,10 +45,13 @@ class Dispositivo:
                 f"ERROR: ID inválido. {id_completo} deve seguir COMPONENTE_FUNCAO_XX ou COMPONENTE ou COMPONENTE_XX"
             )
 
+        # tipo dispositivo
         self.tipo = parserId[0]
 
+        # qual é a funcionalidade daquele dispositivo. Cada dispositivo tem 1 funcionalidade.
         self.funcao = parserId[1] if len(parserId) >= 2 else None
 
+        # número para identificação unica
         self.num = parserId[2] if len(parserId) == 3 else None
 
         self.validar_tipo(self.tipo)
@@ -58,9 +61,7 @@ class Dispositivo:
 
     def validar_tipo(self, tipo: str):
         if tipo not in tipos_padroes:
-            raise ValueError(
-                f"ERROR: Tipo de componente desconhecido ({tipo})"
-            )
+            raise ValueError(f"ERROR: Tipo de componente desconhecido ({tipo})")
 
     def calcular_checksum(self, payload: str) -> int:
         # Soma os valores ASCII dos chars do payload
@@ -71,7 +72,6 @@ class Dispositivo:
         # Criar uma mensagem padrao para o CGEI a ser enviada por socket
 
         length = len(payload)
-        # se menor que TANTO deve ter um padding?
 
         checksum = self.calcular_checksum(payload)
 
@@ -90,12 +90,13 @@ class Dispositivo:
     def abrir_mensagem(self, msg: bytes) -> dict[str, str]:
         str_completa = msg.decode("utf-8")
 
+        # divide str completa
         partes = str_completa.splitlines()
 
         header_dict = {}
         for linha in partes:
             chave, valor = linha.split(":", 1)
-
+            # funcao de strip para tirar espaços caso tenha
             header_dict[chave.strip()] = valor.strip()
 
         return header_dict
@@ -209,6 +210,7 @@ class Dispositivo:
 
     def threeway_handshake(self, sock) -> bool:
         try:
+            # cliente inicia mandando mensagem para o server
             msg_conn = self.criar_mensagem(
                 "CONNECT", "GERENCIADOR", payload=self.id_str
             )
@@ -220,7 +222,9 @@ class Dispositivo:
             resposta_dict = self.abrir_mensagem(resposta_ack)
 
             self.validar_msg(resposta_dict)
-            print(f"\n[{self.id_str} Gerenciador respondeu com: {resposta_dict.get('Payload')}")
+            print(
+                f"\n[{self.id_str}] Gerenciador respondeu com: {resposta_dict.get('Payload')}"
+            )
 
             ## ERROR
             if resposta_dict["Payload"] == "ERROR":
@@ -228,7 +232,8 @@ class Dispositivo:
                     "ERROR: tentativa de conexão com o gerenciador falhou."
                 )
             if (
-                resposta_dict["Payload"] == "GERENCIADOR" # Alterado (antes era conectado)
+                resposta_dict["Payload"]
+                == "GERENCIADOR"  # Alterado (antes era conectado)
                 and resposta_dict["Message-Type"] == "CONNECT"  # ACK ou CONNECT?
             ):
                 msg_ack = self.criar_mensagem("ACK", "GERENCIADOR", "OK")

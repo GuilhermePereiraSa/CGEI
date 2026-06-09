@@ -109,7 +109,9 @@ class Gerenciador(Dispositivo):
                         self.cliente = conn
                         print(f"{sender} registrado como cliente")
 
-                    # Essa msg não contém mais o payload "Conectado", para ser possível validação correta do payload das outras msgs do tipo CONNECT
+                    # Essa msg não contém mais o payload "Conectado",
+                    # para ser possível validação correta do payload das outras msgs do tipo CONNECT
+                    # Algo que difere do relatorio.
                     resposta = self.criar_mensagem("CONNECT", sender, "GERENCIADOR")
                     conn.sendall(resposta)
 
@@ -216,6 +218,13 @@ class Gerenciador(Dispositivo):
 
             for controle in controles:
                 valor = controle["valor"]
+
+                # EVITA ACIONAMENTO FANTASMA
+                # antes dos sensores conectarem,
+                # depois fica normal, é so para
+                # evitar esses TURN ON -> TURN OFF no inicio
+                if valor is None:
+                    continue
                 minimo = controle["min"]
                 maximo = controle["max"]
 
@@ -248,11 +257,28 @@ class Gerenciador(Dispositivo):
                     ):
                         self.enviar_comando(atuador_min, "TURN_OFF")
 
+            # fim for
+            temp_str = (
+                f"{self.ambiente_local['TEMP']:.2f}"
+                if self.ambiente_local["TEMP"] is not None
+                else "AGUARDANDO"
+            )
+            umid_str = (
+                f"{self.ambiente_local['UMID']:.2f}"
+                if self.ambiente_local["UMID"] is not None
+                else "AGUARDANDO"
+            )
+            co2_str = (
+                f"{self.ambiente_local['CO2']:.2f}"
+                if self.ambiente_local["CO2"] is not None
+                else "AGUARDANDO"
+            )
+
             print(
                 f"[AMBIENTE] "
-                f"TEMPERATURA={self.ambiente_local['TEMP']:.2f} | "
-                f"UMIDADE={self.ambiente_local['UMID']:.2f} | "
-                f"CO2={self.ambiente_local['CO2']:.2f}"
+                f"TEMPERATURA={temp_str} | "
+                f"UMIDADE={umid_str} | "
+                f"CO2={co2_str}"
             )
 
             # cada 1 segundo

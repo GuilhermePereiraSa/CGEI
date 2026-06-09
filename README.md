@@ -36,6 +36,8 @@ Toda mensagem carrega informações de roteamento e integridade, possuindo o seg
 
 Por exigência de design e simulação de redes, os componentes não rodam na mesma Thread. **É necessário abrir múltiplos terminais** para observar o sistema em funcionamento.
 
+Feito em ambiente linux. Debian 13. Python 3.13.5.
+
 ### Passo 1: Iniciar o ecossistema e o servidor
 Abra um terminal e inicie as variações físicas do ambiente (para gerar os dados):
 ```bash
