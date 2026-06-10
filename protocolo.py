@@ -1,16 +1,15 @@
-### protocolo.py
-### Descrever comportamentos comuns de todos os agentes dessa rede.
+'''
+    A classe Dispositivo é utilizada como base para todos os componentes 
+    do sistema, sendo responsável pela criação, validação e interpretação 
+    de mensagens, além da implementação do three-way handshake utilizado no 
+    estabelecimento das conexões.
 
-
-# Client configura LIMITES dos param -> Gerenciador guarda param
-## Sensores apenas informam a cada 1 seg sobre o "ambiente"
-# Sensor envia dados -> Gerenciador que avalia se
-## determinado param tenha sido "violado"/tenha a constraint violada (entre min e max)
-## então: Gerenciador envia comando -> Atuador
-## Atuador: "AFIRMATIVO! Qual a próxima mensagem" (ACK) -> Gerenciador
-
-## Sensor notifica -> Gerenciador, sendo valor único retornado ao cliente
-## quando pedir certa informação sobre um determinado paramêtro.
+    As mensagens seguem um formato padronizado contendo cabeçalho, 
+    identificadores de origem e destino, tipo da mensagem, tamanho, checksum 
+    e payload. Antes de serem processadas, todas as mensagens passam por 
+    verificações de integridade e consistência, garantindo que estejam de 
+    acordo com as regras definidas pelo protocolo.
+'''
 
 header_padrao = [
     "Protocol-Name",
@@ -21,6 +20,7 @@ header_padrao = [
     "Checksum",
     "Payload",
 ]
+
 msg_tipos_padroes = [
     "CONNECT",
     "ACK",
@@ -30,14 +30,14 @@ msg_tipos_padroes = [
     "COMMAND",
     "DATA",
 ]
+
 tipos_padroes = ["SENSOR", "ATUADOR", "CLIENTE", "GERENCIADOR"]
 payload_padroes = ["OK", "Conectado", "SUCCESS", "TURN_ON", "TURN_OFF"]
-
 
 class Dispositivo:
     def __init__(self, id_completo: str):
         self.id_str = id_completo
-        # ATUADOR_AQUEC_03
+  
         parserId = id_completo.split("_")
 
         if len(parserId) > 3 or len(parserId) < 1:
@@ -48,7 +48,7 @@ class Dispositivo:
         # tipo dispositivo
         self.tipo = parserId[0]
 
-        # qual é a funcionalidade daquele dispositivo. Cada dispositivo tem 1 funcionalidade.
+        # qual é a funcionalidade daquele dispositivo, cada dispositivo tem 1 funcionalidade
         self.funcao = parserId[1] if len(parserId) >= 2 else None
 
         # número para identificação unica

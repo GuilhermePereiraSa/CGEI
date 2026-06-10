@@ -1,9 +1,15 @@
-## gerenciador.py
-#
-## Ideia é ser um server, um configurador de paramêtros
-## dados pelo usuário, administrador, que passa para os atuadores
-## como devem atuar.
+'''
+    Após iniciar a escuta por conexões, o gerenciador passa a executar duas threads. 
+    Uma delas é responsável por tratar as conexões estabelecidas pelos demais dispositivos, 
+    enquanto a outra realiza o monitoramento contínuo do ambiente. Essa divisão permite que o 
+    sistema acompanhe as condições do ambiente e acione os atuadores necessários para manter 
+    as variáveis dentro dos limites estabelecidos, de forma simultânea.
 
+    O gerenciador mantém os valores da última leitura realizada pelos sensores em
+    variáveis locais, tendo em vista que ele não acessa diretamente o arquivo ambiente.json
+    que contém os valores atuais da variáveis, o que fica a cargo dos sensores, que a cada 1s, 
+    enviam suas leituras ao gerenciador.
+'''
 
 import errno
 import socket
@@ -22,17 +28,15 @@ class Gerenciador(Dispositivo):
         # ele não lê o arquivo diretamente
         self.ambiente_local = {"TEMP": 0.0, "UMID": 0.0, "CO2": 0.0}
 
-        # min, max
+        # min e max default, esses valores podem ser alterados pelo Cliente
         self.temperaturas = [18.0, 26.0]
         self.umidades = [40.0, 70.0]
         self.co2 = [300.0, 800.0]
 
         # sockets dos dispositivos conectados
-        # 1_gerenciador-> n_atuadores e n_sensores
-        self.atuadores = {}  # id do atuador é o index dos atuadores + 1
+        # 1_gerenciador-> n_atuadores, n_sensores, n_clientes
+        self.atuadores = {}  
         self.sensores = {}
-
-        # n_gerenciadores -> 1_cliente (processo proprio)
         self.cliente = {}
 
         # Estado dos atuadores e histerese
@@ -46,8 +50,6 @@ class Gerenciador(Dispositivo):
             "ATUADOR_CO2_1": False,
         }
 
-        # processa proprio para escutar
-
     def criar_mensagem(self, tipo: str, target_id: str, payload: str = "") -> bytes:
         return super().criar_mensagem(tipo, target_id, payload)
 
@@ -55,12 +57,13 @@ class Gerenciador(Dispositivo):
         return super().__repr__()
 
     def iniciar_escuta(self, host="0.0.0.0", port=5000):
+        # Criação e inicialização da thread de monitoramento das variáveis
         Thread(target=self.monitorar_variaveis, daemon=True).start()
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # reuse mesmo address caso reabra
+        # reúsa mesmo address caso reabra
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind((host, port))
-        self.server_socket.listen(5)  # 5 queue espera de conexões
+        self.server_socket.listen(5)  # fila de espera de conexões (limite de 5)
 
         print(f"Gerenciador escutando em {host}:{port}")
 
@@ -68,7 +71,7 @@ class Gerenciador(Dispositivo):
             while True:
                 conn, addr = self.server_socket.accept()
                 print(f"Connected by {conn}")
-                # self.tratar_conexao(conn, addr)
+                # Criação e inicialização da thread de tratamento de conexões
                 Thread(
                     target=self.tratar_conexao, args=(conn, addr), daemon=True
                 ).start()
@@ -79,6 +82,22 @@ class Gerenciador(Dispositivo):
             if e.errno == errno.EADDRINUSE:
                 print("Port already in use")
 
+    def enviar_comando(self, atuador_id, comando: str):
+        conn = self.atuadores.get(atuador_id)
+
+        if not conn:
+            return
+
+        msg = self.criar_mensagem("COMMAND", atuador_id, comando)
+
+        conn.sendall(msg)
+
+        self.estado_atuadores[atuador_id] = (
+            comando == "TURN_ON"  # Muda o estado para true ou false
+        )
+        print(f"Gerenciador enviou {comando} para {atuador_id}")
+    
+    # Thread de tratamento de conexões
     def tratar_conexao(self, conn, addr):
         try:
             while True:
@@ -110,8 +129,8 @@ class Gerenciador(Dispositivo):
                         print(f"{sender} registrado como cliente")
 
                     # Essa msg não contém mais o payload "Conectado",
-                    # para ser possível validação correta do payload das outras msgs do tipo CONNECT
-                    # Algo que difere do relatorio.
+                    # para ser possível validação correta do payload das outras msgs do tipo CONNECT,
+                    # o que difere do especificado no relatório anterior.
                     resposta = self.criar_mensagem("CONNECT", sender, "GERENCIADOR")
                     conn.sendall(resposta)
 
@@ -127,11 +146,11 @@ class Gerenciador(Dispositivo):
                     elif "CO2" in sender:
                         campo = "CO2"
 
-                    # Salva a última leitura no ambiente local para o gerenciador tomar
-                    # decisões na função monitorar_variaveis
+                    # Salva a última leitura no ambiente local para o gerenciador 
+                    # tomar decisões na função monitorar_variaveis ou responder a
+                    # mensagens do tipo READ_SENSOR enviadas pelo Cliente
                     self.ambiente_local[campo] = valor
 
-                # ACK dos atuadores
                 elif tipo_msg == "ACK":
                     print(f"ACK recebido: {payload}")
 
@@ -156,7 +175,7 @@ class Gerenciador(Dispositivo):
                         var = partes[0]
                         minimo = float(partes[1])
                         maximo = float(partes[2])
-
+                        
                         if var == "TEMP":
                             self.temperaturas = [minimo, maximo]
                         elif var == "UMID":
@@ -175,21 +194,7 @@ class Gerenciador(Dispositivo):
         finally:
             conn.close()
 
-    def enviar_comando(self, atuador_id, comando: str):
-        conn = self.atuadores.get(atuador_id)
-
-        if not conn:
-            return
-
-        msg = self.criar_mensagem("COMMAND", atuador_id, comando)
-
-        conn.sendall(msg)
-
-        self.estado_atuadores[atuador_id] = (
-            comando == "TURN_ON"  # Muda o estado para true ou false
-        )
-        print(f"Gerenciador enviou {comando} para {atuador_id}")
-
+    # Thread de monitoramento das variáveis do ambiente
     def monitorar_variaveis(self):
         while True:
             controles = [
@@ -275,7 +280,8 @@ class Gerenciador(Dispositivo):
             )
 
             print(
-                f"[AMBIENTE] "
+                f"[GERENCIADOR] "
+                f"ambiente -> "
                 f"TEMPERATURA={temp_str} | "
                 f"UMIDADE={umid_str} | "
                 f"CO2={co2_str}"

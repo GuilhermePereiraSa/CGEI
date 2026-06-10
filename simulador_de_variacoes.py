@@ -1,12 +1,20 @@
+"""
+    Introduz alterações periódicas nas variáveis do ambiente, simulando eventos 
+    externos que podem influenciar as condições monitoradas pelo sistema.
+
+    Diferentemente dos demais componentes, o simulador não se conecta ao gerenciador 
+    nem participa da comunicação pela rede. Sua função é modificar diretamente 
+    os valores armazenados em ambiente.json, representando mudanças naturais do 
+    ambiente, como variações de temperatura, umidade e concentração de CO2.
+
+    A cada minuto, valores aleatórios são aplicados às variáveis do ambiente, 
+    permitindo que o gerenciador detecte essas alterações e acione os atuadores 
+    quando necessário para restaurar as condições ideais.
+"""
+
 import random
 import time
-
 import ambiente
-
-"""
-    Tem proposito de fazer alterações para simular um "sistema" real.
-"""
-
 
 class Simulador:
     def __init__(self):

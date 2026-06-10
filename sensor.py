@@ -1,19 +1,20 @@
+"""
+    Foram inicializadas três threads de sensores, sendo uma para cada variável 
+    monitorada pelo sistema: temperatura, umidade e concentração de CO2.
+
+    Os sensores realizam leituras diretamente do arquivo ambiente.json, 
+    simulando dispositivos que coletam informações do ambiente real. A cada 
+    segundo, essas leituras são enviadas ao gerenciador por meio da rede.
+
+    O gerenciador não acessa diretamente o arquivo do ambiente, mantendo 
+    apenas os valores mais recentes recebidos dos sensores.
+"""
+
 import socket
-import sys
 import time
 from threading import Thread
-
 import ambiente
 from protocolo import Dispositivo
-
-"""
-Módulo do Sensor (Cliente TCP)
-- Roda como um processo isolado, simulando um sensor da Estufa Inteligente.
-- Handshake: Assim que conecta no Gerenciador, manda uma mensagem "HELLO" com seu ID para cumprir a regra de identificação (Requisito 1.2).
-- Cria uma thread dedicada que fica gerando valores aleatórios (Temp, Umid ou CO2) baseados no tipo do sensor e envia mensagens "DATA" a cada 1 segundo para o Gerenciador (Requisito 1.3).
-- Trata quedas de conexão de forma amigável, interrompendo o envio caso o servidor (Gerenciador) caia ou seja fechado.
-"""
-
 
 class Sensor(Dispositivo):
     def __init__(self, id_completo: str, host: str = "127.0.0.1", port: int = 5000):
@@ -40,16 +41,6 @@ class Sensor(Dispositivo):
 
         except ConnectionRefusedError:
             print(f"[{self.id_str}] Falha ao conectar. O Gerenciador está rodando?")
-
-    # def gerar_leitura_simulada(self) -> str:
-    #     # Simula dados dependendo da função do sensor
-    #     if self.funcao == "TEMP":
-    #         return str(round(random.uniform(15.0, 35.0), 2))
-    #     elif self.funcao == "UMID":
-    #         return str(round(random.uniform(30.0, 80.0), 2))
-    #     elif self.funcao == "CO2":
-    #         return str(round(random.uniform(300.0, 800.0), 2))
-    #     return "0.0"
 
     def obter_leitura(self):
         dados = ambiente.ler_ambiente()
@@ -120,14 +111,3 @@ if __name__ == "__main__":
 
     for t in threads:
         t.join()
-
-
-if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        id_sensor = sys.argv[1]
-
-    else:
-        id_sensor = "SENSOR_TEMP_1"
-
-    sensor = Sensor(id_sensor)
-    sensor.iniciar_sensor()

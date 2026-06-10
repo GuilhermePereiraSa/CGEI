@@ -1,3 +1,20 @@
+'''
+    Para permitir a execução do sistema foram inicializadas quatro threads,
+    sendo cada uma para um tipo diferente de atuador existente no sistema. 
+    Cada uma dessas threads é responsável por estabelecer a conexão com o 
+    gerenciador e processar os comandos recebidos.
+
+    Além da thread principal, cada atuador cria uma thread interna dedicada à 
+    execução contínua de sua atuação sobre o ambiente. Essa thread executa o método 
+    executar_atuacao, responsável por alterar periodicamente as variáveis ambientais 
+    enquanto o atuador permanecer ligado. 
+    
+    A separação entre comunicação e atuação permite que o atuador continue apto a receber 
+    novos comandos do gerenciador mesmo enquanto realiza suas ações. Dessa forma, o gerenciador 
+    pode solicitar o início ou a interrupção da atuação a qualquer momento, sem que a execução da 
+    ação bloqueie o processamento de novas mensagens.
+'''
+
 import errno
 import socket
 import time
@@ -52,6 +69,7 @@ class Atuador(Dispositivo):
                 if e.errno == errno.EADDRINUSE:
                     print(f"[{self.id_str}] Port already in use")
 
+    # Utilizada quando o gerenciador envia um comando
     def tratar_comandos(self):
         while True:
             try:
@@ -89,7 +107,8 @@ class Atuador(Dispositivo):
             except Exception as e:
                 print(f"[{self.id_str}] Erro ao tratar comando: {e}")
                 break
-
+    
+    # Thread de execução de ações
     def executar_atuacao(self):
         while True:
             # Atua continuamente enquanto ligado

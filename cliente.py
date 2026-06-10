@@ -1,3 +1,16 @@
+'''
+    Para permitir a execução do sistema, foi inicializado um Cliente que, 
+    por meio de um menu interativo, pode requisitar ao gerenciador a última 
+    leitura realizada pelos sensores ou configurar os limites ideais das 
+    variáveis monitoradas.
+
+    Após receber essas configurações, o gerenciador utiliza a thread 
+    `monitorar_variaveis` para verificar continuamente os valores recebidos 
+    dos sensores e, quando necessário, solicitar ações aos atuadores 
+    correspondentes, a fim de manter as variáveis dentro dos limites definidos 
+    pelo usuário.
+
+'''
 import errno
 import socket
 import time
@@ -5,7 +18,7 @@ import time
 from protocolo import Dispositivo
 
 
-## Cliente
+# Cliente
 class Client(Dispositivo):
     def __init__(self, id_completo: str):
         super().__init__(id_completo)
@@ -69,8 +82,8 @@ class Client(Dispositivo):
                     dict_variaveis = {"2": "TEMP", "3": "UMID", "4": "CO2"}
                     variavel = dict_variaveis[opcao]
 
-                    minimo = input(f"Digite o límite mínimo para esta {variavel}: ")
-                    maximo = input(f"Digite o límite máximo para esta {variavel}: ")
+                    minimo = input(f"Digite o límite mínimo para {variavel}: ")
+                    maximo = input(f"Digite o límite máximo para {variavel}: ")
 
                     payload = f"{variavel},{minimo},{maximo}"
                     # envia no tipo, falado no relatorio
