@@ -224,10 +224,7 @@ class Gerenciador(Dispositivo):
             for controle in controles:
                 valor = controle["valor"]
 
-                # EVITA ACIONAMENTO FANTASMA
-                # antes dos sensores conectarem,
-                # depois fica normal, é so para
-                # evitar esses TURN ON -> TURN OFF no inicio
+                # Evita acionamento fantasma antes dos sensores conectarem, depois fica normal
                 if valor is None:
                     continue
                 minimo = controle["min"]

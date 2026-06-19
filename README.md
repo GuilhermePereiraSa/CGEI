@@ -51,22 +51,22 @@ python gerenciador.py
 ```
 
 ### Passo 2: Conectar os Atuadores
-Abra novos terminais e inicie os atuadores desejados passando seu ID. Eles farão o Three-way handshake e ficarão aguardando comandos:
+Abra um novo terminal e execute:
 
 ```bash
-python atuador.py ATUADOR_AQUEC_01
-python atuador.py ATUADOR_RESF_01
-
-# etc...
+python atuador.py
 ```
+Nesse arquivo já inicializamos quatro threads, uma para cada tipo de atuador ("ATUADOR_AQUEC_1",
+"ATUADOR_RESF_1", "ATUADOR_IRRIG_1" e "ATUADOR_CO2_1"), necessários para o funcionamento do sistema.
+
 ### Passo 3: Conectar os Sensores
-Em outros terminais, conecte os sensores. Eles começarão a disparar a leitura a cada 1 segundo:
+Em outro terminal, conecte os sensores. Eles começarão a disparar a leitura a cada 1 segundo:
 
 ```bash
-python sensor.py SENSOR_TEMP_01
-python sensor.py SENSOR_UMID_01
-# etc...
+python sensor.py
 ```
+Nesse arquivo já inicializamos três threads, uma para cada tipo de sensor ("SENSOR_TEMP_1",
+"SENSOR_UMID_1" e "SENSOR_CO2_1"), necessários para o funcionamento do sistema.
 
 ### Passo 4: Interação com o Usuário
 Por fim, abra um terminal para ser o cliente externo. Um menu interativo será exibido:

@@ -11,6 +11,7 @@ DEFAULT = {
     "CO2": 0.0
 }
 
+# Usada por ler_ambiente
 def carregar_arquivo():
     try:
         with open(arquivo, "r") as f:
@@ -24,7 +25,7 @@ def carregar_arquivo():
     except (FileNotFoundError, json.JSONDecodeError):
         return DEFAULT.copy()
 
-
+# Usada pelos sensores
 def ler_ambiente():
     with lock:
         return carregar_arquivo()
